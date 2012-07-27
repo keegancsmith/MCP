@@ -6,7 +6,10 @@ other. Named after Master Control Program (MCP) from the Tron movies.
 '''
 
 import collections
+import itertools
 import os
+import random
+import tempfile
 
 
 class ClientException(Exception):
@@ -92,7 +95,14 @@ class GameState(object):
 
         return GameState(state, position['You'], position['Opponent'])
 
+    @classmethod
+    def iter_positions(cls):
+        ps = itertools.product(xrange(cls.WIDTH), xrange(cls.HEIGHT))
+        return itertools.imap(Position, ps)
+
     def __getitem__(self, pos):
+        if not isinstance(pos, Position):
+            pos = Position(pos)
         return self.state[pos]
 
     def __iter__(self):
@@ -171,12 +181,7 @@ class GameState(object):
         return os.linesep.join(lines)
 
 
-if __name__ == '__main__':
-    # Just testing GameState parser for now
-    import sys
-
-    with file(sys.argv[1]) as fd:
-        gs = GameState.read(fd)
+def test_game_state(gs):
     for x in zip(gs.ascii().splitlines(), gs.flip().ascii().splitlines()):
         print('%s  %s' % x)
     print('%s => %s' % (gs.you, list(gs.neighbours(gs.you))))
@@ -189,10 +194,86 @@ if __name__ == '__main__':
     gs2 = GameState.read(buf)
     assert gs.difference(gs2) == {}
 
-    import random
     moveTo = random.choice(list(gs.neighbours(gs.you)))
     state = dict(gs.state)
     state[moveTo] = 'You'
     state[gs.you] = 'YourWall'
     gs2 = GameState(state, moveTo, gs.opponent)
     assert gs.valid_move(gs2)
+
+
+def run(command, game_state):
+    raise NotImplementedError('TODO')
+
+
+def run_local_game(args):
+    if args.game_state is None:
+        state = dict((p, 'Clear') for p in GameState.iter_positions())
+        p1 = random.choice(state.keys())
+        p2 = Position(p1.x + GameState.WIDTH / 2, p1.y)
+        state[p1] = 'You'
+        state[p2] = 'Opponent'
+        game_state = GameState(state, p1, p2)
+    else:
+        with file(args.game_state) as fd:
+            game_state = GameState.read(fd)
+
+    turn = 0
+    while True:
+        os.system(['clear', 'cls'][os.name == 'nt'])
+        print(game_state.ascii())
+        print()
+
+        can_move = lambda p: len(list(game_state.neighbours(p))) > 0
+        result = {
+            (False, False): 'Tie',
+            (True, False): 'Player 1 wins',
+            (False, True): 'Player 2 wins',
+        }.get(can_move(game_state.you), can_move(game_state.opponent))
+        if result is not None:
+            print(result)
+            break
+
+        is_player1 = turn % 2 == 0
+        player = 'Player 1' if is_player1 else 'Player 2'
+        print('Running turn for %s...' % player)
+        if is_player1:
+            game_state = run(args.player1, game_state)
+        else:
+            game_state = run(args.player2, game_state.flip()).flip()
+
+        turn += 1
+
+
+def run_remote_game(args):
+    raise NotImplementedError('This is future functionality.')
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__.strip())
+    subparsers = parser.add_subparsers(title='commands')
+
+    player_help = ('The command to run your player. If not specified '
+                   'start.bat or start.sh is executed in the current '
+                   'directory.')
+
+    parser_local = subparsers.add_parser('local', help='Run a game locally')
+    parser_local.add_argument('--player1', help=player_help)
+    parser_local.add_argument('--player2', help=player_help)
+    parser_local.add_argument('--game-state',
+                              help=('Optionally specify the initial game '
+                                    'state. Otherwise one is randomnly '
+                                    'generated (excluding walls)'))
+    parser_local.set_defaults(func=run_local_game)
+
+    parser_remote = subparsers.add_parser('remote',
+                                          help='Take part in a remote game')
+    parser_remote.add_argument('--command', help=player_help)
+    parser_remote.add_argument('--url', required=True,
+                               help='The URL for the game being played.')
+    parser_remote.set_defaults(func=run_remote_game)
+
+    args = parser.parse_args()
+    args.func(args)
