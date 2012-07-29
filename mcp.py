@@ -9,6 +9,9 @@ import collections
 import itertools
 import os
 import random
+import shlex
+import subprocess
+import tempfile
 
 
 class ClientException(Exception):
@@ -196,6 +199,9 @@ class GameState(object):
         return os.linesep.join(lines)
 
 
+DEFAULT_EXECUTABLE = ['./start.sh', 'start.bat'][os.name == 'nt']
+
+
 def test_game_state(gs):
     for x in zip(gs.ascii().splitlines(), gs.flip().ascii().splitlines()):
         print('%s  %s' % x)
@@ -220,7 +226,22 @@ def test_game_state(gs):
 
 
 def run(command, game_state):
-    raise NotImplementedError('TODO')
+    if command is None:
+        # Find the command to run in PWD
+        command = DEFAULT_EXECUTABLE
+
+    with tempfile.NamedTemporaryFile() as fd:
+        game_state.write(fd)
+        fd.flush()
+
+        command = shlex.split(command)
+        subprocess.call(command + [fd.name])
+        fd.seek(0)
+        new_game_state = GameState.read(fd)
+
+        if not game_state.valid_move(new_game_state):
+            raise ClientException('Invalid move')
+        return new_game_state
 
 
 def run_local_game(args):
@@ -239,25 +260,31 @@ def run_local_game(args):
     while True:
         os.system(['clear', 'cls'][os.name == 'nt'])
         print(game_state.ascii())
-        print()
+        print
 
         can_move = lambda p: len(list(game_state.neighbours(p))) > 0
         result = {
             (False, False): 'Tie',
             (True, False): 'Player 1 wins',
             (False, True): 'Player 2 wins',
-        }.get(can_move(game_state.you), can_move(game_state.opponent))
+        }.get((can_move(game_state.you), can_move(game_state.opponent)))
         if result is not None:
             print(result)
             break
 
         is_player1 = turn % 2 == 0
         player = 'Player 1' if is_player1 else 'Player 2'
+        opponent = 'Player 2' if is_player1 else 'Player 1'
         print('Running turn for %s...' % player)
-        if is_player1:
-            game_state = run(args.player1, game_state)
-        else:
-            game_state = run(args.player2, game_state.flip()).flip()
+        try:
+            if is_player1:
+                game_state = run(args.player1, game_state)
+            else:
+                game_state = run(args.player2, game_state.flip()).flip()
+        except ClientException as e:
+            print('%s made an illegal move: %s' % (player, e))
+            print('%s wins' % opponent)
+            break
 
         turn += 1
 
