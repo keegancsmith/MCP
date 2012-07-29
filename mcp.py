@@ -16,31 +16,21 @@ class ClientException(Exception):
     pass
 
 
-class Position(object):
-    def __init__(self, x, y=None):
+_Position = collections.namedtuple('Position', 'x y')
+class Position(_Position):
+    def __new__(cls, x, y=None):
         # Check if we got a tuple/list
         if y is None:
             x, y = x
-        self.x = x % GameState.WIDTH
-        self.y = y % GameState.HEIGHT
+        x %= GameState.WIDTH
+        y %= GameState.HEIGHT
+        return _Position.__new__(cls, x, y)
 
     def __add__(self, p):
-        if isinstance(p, Position):
-            return Position(self.x + p.x, self.y + p.y)
-        else:
-            return Position(self.x + p[0], self.y + p[1])
-
-    def __hash__(self):
-        return hash((self.x, self.y))
-
-    def __cmp__(self, a):
-        return cmp((self.x, self.y), (a.x, a.y))
+        return Position(self.x + p[0], self.y + p[1])
 
     def __str__(self):
-        return '(%d, %d)' % (self.x, self.y)
-
-    def __repr__(self):
-        return 'Position' + str(self)
+        return '(%s, %s)' % (self.x, self.y)
 
 
 class GameState(object):
