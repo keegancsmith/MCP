@@ -157,28 +157,30 @@ class GameState(object):
         return dict((k, (v, game_state[k])) for k, v in self
                     if v != game_state[k])
 
-    def valid_move(self, new_game_state):
-        '''Returns True if new_game_state came from a valid move from the
-        current state.'''
+    def validate_move(self, new_game_state):
+        '''Raises a ClientException if new_game_state could not come from a
+        valid move from the current state.'''
         old, new = self.you, new_game_state.you
-        if self[new] != 'Clear' or new_game_state[old] != 'YourWall':
-            return False
-        mod_dist = lambda a, b, m: min((a - b) % m, (b - a) % m)
-        dx = mod_dist(old.x, new.x, GameState.WIDTH)
-        dy = mod_dist(old.y, new.y, GameState.HEIGHT)
-        if dx + dy != 1:
-            return False
+        if self[new] != 'Clear':
+            raise ClientException('The new player position was not Clear')
+        if new_game_state[old] != 'YourWall':
+            raise ClientException('The old player position is not a YourWall')
+
+        if new not in self.neighbours(old):
+            raise ClientException('The new player position can not be '
+                                  'reached from the old position')
+
         diff = self.difference(new_game_state)
         if len(diff) > 2:
-            return False
+            raise ClientException('More than two states changed')
+
         valid_state_changes = {
             ('Clear', 'You'): new,
             ('You', 'YourWall'): old,
         }
         for pos, state_change in diff.iteritems():
             if valid_state_changes.get(state_change) != pos:
-                return False
-        return True
+                raise ClientException('Invalid state change')
 
     def ascii(self):
         'Returns a multi-line ascii string representation of the state.'
@@ -223,7 +225,7 @@ def test_game_state(gs):
     state[moveTo] = 'You'
     state[gs.you] = 'YourWall'
     gs2 = GameState(state, moveTo, gs.opponent)
-    assert gs.valid_move(gs2)
+    gs.validate_move(gs2)
 
 
 def run(command, game_state):
@@ -239,9 +241,7 @@ def run(command, game_state):
         subprocess.call(command + [fd.name])
         fd.seek(0)
         new_game_state = GameState.read(fd)
-
-        if not game_state.valid_move(new_game_state):
-            raise ClientException('Invalid move')
+        game_state.validate_move(new_game_state)
         return new_game_state
 
 
