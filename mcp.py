@@ -9,7 +9,6 @@ import collections
 import itertools
 import os
 import random
-import tempfile
 
 
 class ClientException(Exception):
@@ -23,7 +22,11 @@ class Position(_Position):
         if y is None:
             x, y = x
         x %= GameState.WIDTH
-        y %= GameState.HEIGHT
+        q, r = divmod(y, GameState.HEIGHT - 1)
+        y = r if q % 2 == 0 else GameState.HEIGHT - 1 - r
+        # Polar endpoints
+        if y in (0, GameState.HEIGHT - 1):
+            x = 0
         return _Position.__new__(cls, x, y)
 
     def __add__(self, p):
@@ -31,6 +34,18 @@ class Position(_Position):
 
     def __str__(self):
         return '(%s, %s)' % (self.x, self.y)
+
+    @property
+    def at_pole(self):
+        return self.y in (0, GameState.HEIGHT - 1)
+
+    def neighbours(self):
+        if self.at_pole:
+            y = 1 if self.y == 0 else GameState.HEIGHT - 2
+            return (Position(i, y) for i in xrange(GameState.WIDTH))
+        else:
+            deltas = ((0, 1), (1, 0), (-1, 0), (0, -1))
+            return itertools.imap(self.__add__, deltas)
 
 
 class GameState(object):
@@ -51,7 +66,6 @@ class GameState(object):
         Does a lot of validation on the game state. If anything fails a
         `ClientException` is thrown.'''
         state = {}
-        state_count = collections.defaultdict(int)
         position = {}
         for line in fd:
             line = line.strip().split()
@@ -70,15 +84,22 @@ class GameState(object):
                                       % line)
 
             if pos in state:
-                raise ClientException('State for %s was repeated' % (pos,))
+                if pos.at_pole:
+                    if state[pos] != s:
+                        raise ClientException('Different state at pole %s.'
+                                              % pos.y)
+                else:
+                    raise ClientException('State for %s was repeated' % (pos,))
 
             state[pos] = s
-            state_count[s] += 1
             position[s] = pos
 
-        if len(state) != GameState.WIDTH * GameState.HEIGHT:
+        if len(state) != GameState.WIDTH * (GameState.HEIGHT - 2) + 2:
             raise ClientException('Game state file is missing entries')
 
+        state_count = collections.defaultdict(int)
+        for s in state.itervalues():
+            state_count[s] += 1
         if state_count['You'] != 1 or state_count['Opponent'] != 1:
             raise ClientException('You or Opponent state not specified only '
                                   'once.')
@@ -87,7 +108,8 @@ class GameState(object):
 
     @classmethod
     def iter_positions(cls):
-        ps = itertools.product(xrange(cls.WIDTH), xrange(cls.HEIGHT))
+        ps = itertools.product(xrange(cls.WIDTH), xrange(1, cls.HEIGHT - 1))
+        ps = itertools.chain([(0, 0)], ps, [(0, cls.HEIGHT - 1)])
         return itertools.imap(Position, ps)
 
     def __getitem__(self, pos):
@@ -117,8 +139,7 @@ class GameState(object):
     def neighbours(self, pos):
         '''Generator which returns all positions neighbouring (x, y) which are
         CLEAR.'''
-        for delta in ((0, 1), (1, 0), (-1, 0), (0, -1)):
-            p = pos + delta
+        for p in pos.neighbours():
             if self[p] == 'Clear':
                 yield p
 
@@ -176,6 +197,8 @@ def test_game_state(gs):
         print('%s  %s' % x)
     print('%s => %s' % (gs.you, list(gs.neighbours(gs.you))))
     print('%s => %s' % (gs.opponent, list(gs.neighbours(gs.opponent))))
+    polar = Position(13, GameState.HEIGHT - 1)
+    print('%s => %s' % (polar, list(gs.neighbours(polar))))
 
     from StringIO import StringIO
     buf = StringIO()
@@ -239,6 +262,12 @@ def run_remote_game(args):
     raise NotImplementedError('This is future functionality.')
 
 
+def run_validate(args):
+    gs = GameState.read(args.game_state)
+    if not args.quiet:
+        test_game_state(gs)
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -264,6 +293,16 @@ if __name__ == '__main__':
     parser_remote.add_argument('--url', required=True,
                                help='The URL for the game being played.')
     parser_remote.set_defaults(func=run_remote_game)
+
+    parser_validate = subparsers.add_parser('validate',
+                                          help='Validates a gamestate file')
+    parser_validate.add_argument('game_state', type=argparse.FileType('r'),
+                                 help=('A path to the game state file to '
+                                       'validate'))
+    parser_validate.add_argument('--quiet', action='store_true',
+                                 help=('Prevent testing the utility functions '
+                                       'and outputting the board'))
+    parser_validate.set_defaults(func=run_validate)
 
     args = parser.parse_args()
     args.func(args)
