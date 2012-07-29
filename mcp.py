@@ -130,6 +130,7 @@ class GameState(object):
                     fd.write('%d %d %s\r\n' % (x, pos.y, state))
             else:
                 fd.write('%d %d %s\r\n' % (pos.x, pos.y, state))
+        fd.flush()
 
     def flip(self):
         'Return a GameState instance with the opponent and you switched.'
@@ -299,6 +300,20 @@ def run_validate(args):
         test_game_state(gs)
 
 
+def run_random_ai(args):
+    gs = GameState.read(args.game_state)
+    args.game_state.close()
+
+    next = random.choice(list(gs.neighbours(gs.you)))
+    state = dict(gs.state)
+    state[next] = 'You'
+    state[gs.you] = 'YourWall'
+    gs = GameState(state, next, gs.opponent)
+
+    with file(args.game_state.name, 'w') as fd:
+        gs.write(fd)
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -334,6 +349,12 @@ if __name__ == '__main__':
                                  help=('Prevent testing the utility functions '
                                        'and outputting the board'))
     parser_validate.set_defaults(func=run_validate)
+
+    parser_randai = subparsers.add_parser('randomai',
+                                          help='A Random AI for testing')
+    parser_randai.add_argument('game_state', type=argparse.FileType('r'),
+                               help=('A path to the game state file'))
+    parser_randai.set_defaults(func=run_random_ai)
 
     args = parser.parse_args()
     args.func(args)
