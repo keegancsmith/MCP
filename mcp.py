@@ -122,7 +122,11 @@ class GameState(object):
 
     def write(self, fd):
         for pos, state in self:
-            fd.write('%d %d %s\r\n' % (pos.x, pos.y, state))
+            if pos.at_pole:
+                for x in xrange(GameState.WIDTH):
+                    fd.write('%d %d %s\r\n' % (x, pos.y, state))
+            else:
+                fd.write('%d %d %s\r\n' % (pos.x, pos.y, state))
 
     def flip(self):
         'Return a GameState instance with the opponent and you switched.'
