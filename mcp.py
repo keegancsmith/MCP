@@ -336,7 +336,7 @@ if __name__ == '__main__':
     parser_remote = subparsers.add_parser('remote',
                                           help='Take part in a remote game')
     parser_remote.add_argument('--command', help=player_help)
-    parser_remote.add_argument('--url', required=True,
+    parser_remote.add_argument('url',
                                help='The URL for the game being played.')
     parser_remote.set_defaults(func=run_remote_game)
 
