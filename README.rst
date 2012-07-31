@@ -26,3 +26,8 @@ To run against a random AI run::
 You can adjust *player1* and *player2* accordingly. The default command to run
 for a player is ``start.sh`` or ``start.bat`` (depending if you are on a UNIX
 variant or not).
+
+MCP has other functionality. Pass ``--help`` to the command to find out more::
+
+  $ mcp.py --help
+  $ mcp.py remote --help

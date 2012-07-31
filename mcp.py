@@ -7,11 +7,19 @@ other. Named after Master Control Program (MCP) from the Tron movies.
 
 import collections
 import itertools
+import json
 import os
 import random
 import shlex
+import StringIO
 import subprocess
+import sys
 import tempfile
+import time
+import urllib2
+
+
+__all__ = ['ClientException', 'Position', 'GameState']
 
 
 class ClientException(Exception):
@@ -213,8 +221,7 @@ def test_game_state(gs):
     polar = Position(13, GameState.HEIGHT - 1)
     print('%s => %s' % (polar, list(gs.neighbours(polar))))
 
-    from StringIO import StringIO
-    buf = StringIO()
+    buf = StringIO.StringIO()
     gs.write(buf)
     buf.seek(0)
     gs2 = GameState.read(buf)
@@ -291,7 +298,67 @@ def run_local_game(args):
 
 
 def run_remote_game(args):
-    raise NotImplementedError('This is future functionality.')
+    while True:
+        print('Fetching state from server...')
+        payload = json.load(urllib2.urlopen(args.url))
+        player_num = payload[u'player_num']
+        turn = payload[u'turn']
+        with StringIO.StringIO(payload[u'game_state']) as fd:
+            game_state = GameState.read(fd)
+
+        os.system(['clear', 'cls'][os.name == 'nt'])
+        print(game_state.ascii())
+        print
+
+        if turn is None:
+            print('Game over. Winner is %s' % payload[u'winner'])
+            print(payload[u'description'])
+            break
+
+        if turn != player_num:
+            print('Waiting for Player %s to play')
+            time.sleep(5)
+            continue
+
+        # This players turn
+        print('Running your AI...')
+        try:
+            game_state = run(args.command, game_state)
+        except ClientException as e:
+            print('Your AI made an illegal move: %s' % e)
+            print('Please fix your client and rerun this command to resume '
+                  'the game')
+            print(' '.join(sys.argv))
+            break
+
+        # Get a string rep of the game_state
+        with StringIO.StringIO() as fd:
+            game_state.write(fd)
+            game_state = fd.getvalue()
+
+        # Try post the new game_state
+        for backoff in xrange(8):
+            try:
+                urllib2.urlopen(args.url, {'game_state': game_state}).read()
+            except urllib2.HTTPError as e:
+                # Check if client error
+                if str(e.code).startswith('3'):
+                    print('Client Error: ' + e)
+                    break
+            except:
+                import logging
+                logging.exception('Unexpected exception when POSTing the new '
+                                  'game state')
+
+            # We do exponential backoff for failed POSTs, but give up after a
+            # while
+            backoff = 2 ** backoff
+            print('POST failed against server, retrying in %ss' % backoff)
+            time.sleep(backoff)
+        else:
+            print('Could not connect to the server. Please try again later')
+            print(' '.join(sys.argv))
+            break
 
 
 def run_validate(args):
