@@ -123,6 +123,17 @@ class GameState(object):
         ps = itertools.chain([(0, 0)], ps, [(0, cls.HEIGHT - 1)])
         return itertools.imap(Position, ps)
 
+    @classmethod
+    def random_start_game_state(cls):
+        state = dict((p, 'Clear') for p in cls.iter_positions())
+        # Random position excluding the polar endpoints
+        p1 = Position(random.randint(0, cls.WIDTH - 1),
+                      random.randint(1, cls.HEIGHT - 2))
+        p2 = Position(p1.x + cls.WIDTH / 2, p1.y)
+        state[p1] = 'You'
+        state[p2] = 'Opponent'
+        return GameState(state, p1, p2)
+
     def __getitem__(self, pos):
         if not isinstance(pos, Position):
             pos = Position(pos)
@@ -254,12 +265,7 @@ def run(command, game_state):
 
 def run_local_game(args):
     if args.game_state is None:
-        state = dict((p, 'Clear') for p in GameState.iter_positions())
-        p1 = random.choice(state.keys())
-        p2 = Position(p1.x + GameState.WIDTH / 2, p1.y)
-        state[p1] = 'You'
-        state[p2] = 'Opponent'
-        game_state = GameState(state, p1, p2)
+        game_state = GameState.random_start_game_state()
     else:
         with file(args.game_state) as fd:
             game_state = GameState.read(fd)
