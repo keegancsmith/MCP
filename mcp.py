@@ -11,12 +11,16 @@ import json
 import os
 import random
 import shlex
-import StringIO
 import subprocess
 import sys
 import tempfile
 import time
 import urllib2
+
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
 
 
 __all__ = ['ClientException', 'Position', 'GameState', 'main']
@@ -70,8 +74,8 @@ class GameState(object):
         self.opponent = opponent
         assert state[you] == 'You' and state[opponent] == 'Opponent'
 
-    @staticmethod
-    def read(fd):
+    @classmethod
+    def load(cls, fd):
         '''Parses a game state file from the provided file object `fd`.
 
         Does a lot of validation on the game state. If anything fails a
@@ -83,7 +87,7 @@ class GameState(object):
             if not line:
                 continue
 
-            if len(line) != 3 or line[2] not in GameState.VALID_STATES:
+            if len(line) != 3 or line[2] not in cls.VALID_STATES:
                 raise ClientException('Found an invalid game state line: %s'
                                       % line)
 
@@ -105,7 +109,7 @@ class GameState(object):
             state[pos] = s
             position[s] = pos
 
-        if len(state) != GameState.WIDTH * (GameState.HEIGHT - 2) + 2:
+        if len(state) != cls.WIDTH * (cls.HEIGHT - 2) + 2:
             raise ClientException('Game state file is missing entries')
 
         state_count = collections.defaultdict(int)
@@ -115,7 +119,12 @@ class GameState(object):
             raise ClientException('You or Opponent state not specified only '
                                   'once.')
 
-        return GameState(state, position['You'], position['Opponent'])
+        return cls(state, position['You'], position['Opponent'])
+
+    @classmethod
+    def loads(cls, s):
+        fd = StringIO(s)
+        return cls.load(fd)
 
     @classmethod
     def iter_positions(cls):
@@ -142,7 +151,7 @@ class GameState(object):
     def __iter__(self):
         return self.state.iteritems()
 
-    def write(self, fd):
+    def dump(self, fd):
         for pos, state in self:
             if pos.at_pole:
                 for x in xrange(GameState.WIDTH):
@@ -150,6 +159,11 @@ class GameState(object):
             else:
                 fd.write('%d %d %s\r\n' % (pos.x, pos.y, state))
         fd.flush()
+
+    def dumps(self):
+        fd = StringIO()
+        self.dump(fd)
+        return fd.getvalue()
 
     def flip(self):
         'Return a GameState instance with the opponent and you switched.'
@@ -232,10 +246,8 @@ def test_game_state(gs):
     polar = Position(13, GameState.HEIGHT - 1)
     print('%s => %s' % (polar, list(gs.neighbours(polar))))
 
-    buf = StringIO.StringIO()
-    gs.write(buf)
-    buf.seek(0)
-    gs2 = GameState.read(buf)
+    s = gs.dumps()
+    gs2 = GameState.loads(s)
     assert gs.difference(gs2) == {}
 
     moveTo = random.choice(list(gs.neighbours(gs.you)))
@@ -252,13 +264,13 @@ def run(command, game_state):
         command = DEFAULT_EXECUTABLE
 
     with tempfile.NamedTemporaryFile() as fd:
-        game_state.write(fd)
+        game_state.dump(fd)
         fd.flush()
 
         command = shlex.split(command)
         subprocess.call(command + [fd.name])
         fd.seek(0)
-        new_game_state = GameState.read(fd)
+        new_game_state = GameState.load(fd)
         game_state.validate_move(new_game_state)
         return new_game_state
 
@@ -268,7 +280,7 @@ def run_local_game(args):
         game_state = GameState.random_start_game_state()
     else:
         with file(args.game_state) as fd:
-            game_state = GameState.read(fd)
+            game_state = GameState.load(fd)
 
     turn = 0
     while True:
@@ -309,8 +321,7 @@ def run_remote_game(args):
         payload = json.load(urllib2.urlopen(args.url))
         player_num = payload[u'player_num']
         turn = payload[u'turn']
-        with StringIO.StringIO(payload[u'game_state']) as fd:
-            game_state = GameState.read(fd)
+        game_state = GameState.loads(payload[u'game_state'])
 
         os.system(['clear', 'cls'][os.name == 'nt'])
         print(game_state.ascii())
@@ -330,17 +341,13 @@ def run_remote_game(args):
         print('Running your AI...')
         try:
             game_state = run(args.command, game_state)
+            game_state = game_state.dumps()
         except ClientException as e:
             print('Your AI made an illegal move: %s' % e)
             print('Please fix your client and rerun this command to resume '
                   'the game')
             print(' '.join(sys.argv))
             break
-
-        # Get a string rep of the game_state
-        with StringIO.StringIO() as fd:
-            game_state.write(fd)
-            game_state = fd.getvalue()
 
         # Try post the new game_state
         for backoff in xrange(8):
@@ -368,13 +375,13 @@ def run_remote_game(args):
 
 
 def run_validate(args):
-    gs = GameState.read(args.game_state)
+    gs = GameState.load(args.game_state)
     if not args.quiet:
         test_game_state(gs)
 
 
 def run_random_ai(args):
-    gs = GameState.read(args.game_state)
+    gs = GameState.load(args.game_state)
     args.game_state.close()
 
     next = random.choice(list(gs.neighbours(gs.you)))
@@ -384,7 +391,7 @@ def run_random_ai(args):
     gs = GameState(state, next, gs.opponent)
 
     with file(args.game_state.name, 'w') as fd:
-        gs.write(fd)
+        gs.dump(fd)
 
 
 def main():
