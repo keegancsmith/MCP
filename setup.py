@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='MCP',
@@ -9,7 +9,7 @@ setup(
     author_email='keegan.csmith@gmail.com',
     url='https://bitbucket.org/keegan_csmith/mcp',
     license='LICENSE',
-    scripts=['mcp.py'],
+    py_modules=['mcp'],
     description='A program to orchestrate Entellect Challenge bot matches.',
     long_description=file('README.rst').read(),
     classifiers=[
@@ -21,4 +21,5 @@ setup(
         'Topic :: Software Development',
         'Topic :: Utilities',
     ],
+    entry_points={'console_scripts': ['mcp = mcp:main']},
 )

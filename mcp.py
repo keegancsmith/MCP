@@ -19,7 +19,7 @@ import time
 import urllib2
 
 
-__all__ = ['ClientException', 'Position', 'GameState']
+__all__ = ['ClientException', 'Position', 'GameState', 'main']
 
 
 class ClientException(Exception):
@@ -381,7 +381,7 @@ def run_random_ai(args):
         gs.write(fd)
 
 
-if __name__ == '__main__':
+def main():
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__.strip())
@@ -425,3 +425,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     args.func(args)
+
+if __name__ == '__main__':
+    main()
