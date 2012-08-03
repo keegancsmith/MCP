@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib
 import urllib2
 
 try:
@@ -320,20 +321,19 @@ def run_remote_game(args):
         print('Fetching state from server...')
         payload = json.load(urllib2.urlopen(args.url))
         player_num = payload[u'player_num']
-        turn = payload[u'turn']
+        current_player = payload[u'current_player']
+        winners = payload[u'winners']
         game_state = GameState.loads(payload[u'game_state'])
 
         os.system(['clear', 'cls'][os.name == 'nt'])
         print(game_state.ascii())
-        print
+        print(payload[u'description'])
 
-        if turn is None:
-            print('Game over. Winner is %s' % payload[u'winner'])
-            print(payload[u'description'])
+        if winners:
+            print('Game over. The winner(s) are ' + ' and '.join(winners))
             break
 
-        if turn != player_num:
-            print('Waiting for Player %s to play')
+        if current_player != player_num:
             time.sleep(5)
             continue
 
@@ -349,26 +349,13 @@ def run_remote_game(args):
             print(' '.join(sys.argv))
             break
 
-        # Try post the new game_state
-        for backoff in xrange(8):
-            try:
-                urllib2.urlopen(args.url, {'game_state': game_state}).read()
-            except urllib2.HTTPError as e:
-                # Check if client error
-                if str(e.code).startswith('3'):
-                    print('Client Error: ' + e)
-                    break
-            except:
-                import logging
-                logging.exception('Unexpected exception when POSTing the new '
-                                  'game state')
-
-            # We do exponential backoff for failed POSTs, but give up after a
-            # while
-            backoff = 2 ** backoff
-            print('POST failed against server, retrying in %ss' % backoff)
-            time.sleep(backoff)
-        else:
+        try:
+            data = urllib.urlencode({'game_state': game_state})
+            urllib2.urlopen(args.url, data).read()
+        except:
+            import logging
+            logging.exception('Unexpected exception when POSTing the new '
+                              'game state')
             print('Could not connect to the server. Please try again later')
             print(' '.join(sys.argv))
             break
