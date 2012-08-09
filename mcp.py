@@ -335,7 +335,7 @@ def run_remote_game(args):
             break
 
         if current_player != player_num:
-            time.sleep(5)
+            time.sleep(2)
             continue
 
         # This players turn
