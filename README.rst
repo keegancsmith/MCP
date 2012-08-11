@@ -5,7 +5,9 @@
 A program to orchestrate Entellect Challenge bot matches. The Entellect
 Challenge is a Tron AI competition.
 
-Named after Master Control Program (MCP) from the Tron movies.
+Named after Master Control Program (MCP) from the Tron movies. To contribute
+back just send a pull request on https://github.com/keegancsmith/MCP or
+https://bitbucket.org/keegan_csmith/mcp
 
 
 Installation

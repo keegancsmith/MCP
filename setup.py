@@ -7,7 +7,7 @@ setup(
     version='0.1',
     author='Keegan Carruthers-Smith',
     author_email='keegan.csmith@gmail.com',
-    url='https://bitbucket.org/keegan_csmith/mcp',
+    url='https://github.com/keegancsmith/MCP',
     license='LICENSE',
     py_modules=['mcp'],
     description='A program to orchestrate Entellect Challenge bot matches.',
