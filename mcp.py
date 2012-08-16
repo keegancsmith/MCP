@@ -369,7 +369,7 @@ def run_validate(args):
 
 
 class run_ai(object):
-    CHOICES = ('random', 'wallhugger')
+    CHOICES = ('random', 'wallhugger', 'attack')
 
     def __init__(self, args):
         gs = GameState.load(args.game_state)
@@ -403,6 +403,30 @@ class run_ai(object):
             if any(gs[q] in walls for q in shared_neighs):
                 return p
         return self.random(gs)
+
+    def attack(self, gs):
+        parent = self.bfs(gs, gs.you)
+        d, next = min(parent.get(p, (Ellipsis, None))
+                      for p in gs.neighbours(gs.opponent))
+        if next is None:
+            return self.wallhugger(next)
+        else:
+            return next
+
+    def bfs(self, gs, source):
+        parent = {}
+        queue = collections.deque()
+        for v in gs.neighbours(source):
+            parent[v] = (1, v)
+            queue.append(v)
+        while queue:
+            v = queue.popleft()
+            d, p = parent[v]
+            for u in gs.neighbours(v):
+                if u not in parent:
+                    parent[u] = (d + 1, p)
+                    queue.append(u)
+        return parent
 
 
 def main():
