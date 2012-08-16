@@ -441,7 +441,8 @@ class run_ai(object):
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description=__doc__.strip())
+    parser = argparse.ArgumentParser(description=__doc__.strip(), epilog='''
+    See '%(prog)s <command> --help' for more info on a specific command.''')
     subparsers = parser.add_subparsers(title='commands')
 
     player_help = ('The command to run your player. If not specified '
