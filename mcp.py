@@ -369,7 +369,7 @@ def run_validate(args):
 
 
 class run_ai(object):
-    CHOICES = ('random',)
+    CHOICES = ('random', 'wallhugger')
 
     def __init__(self, args):
         gs = GameState.load(args.game_state)
@@ -387,6 +387,22 @@ class run_ai(object):
 
     def random(self, gs):
         return random.choice(list(gs.neighbours(gs.you)))
+
+    def wallhugger(self, gs):
+        walls = ('Opponent', 'OpponentWall', 'YourWall')
+        # Try a neighbouring position which is adjacent to a wall
+        for p in gs.neighbours(gs.you):
+            if any(gs[q] in walls for q in p.neighbours()):
+                return p
+        # Try a corner of a wall
+        for p in gs.neighbours(gs.you):
+            shared_neighs = set(gs.you.neighbours()) \
+                .intersection(itertools.chain.from_iterable(
+                q.neighbours() for q in p.neighbours()))
+            shared_neighs.remove(p)
+            if any(gs[q] in walls for q in shared_neighs):
+                return p
+        return self.random(gs)
 
 
 def main():
