@@ -369,7 +369,7 @@ def run_validate(args):
 
 
 class run_ai(object):
-    CHOICES = ('random', 'wallhugger', 'attack')
+    CHOICES = ('random', 'wallhugger', 'attack', 'runaway')
 
     def __init__(self, args):
         gs = GameState.load(args.game_state)
@@ -408,6 +408,15 @@ class run_ai(object):
         parent = self.bfs(gs, gs.you)
         d, next = min(parent.get(p, (Ellipsis, None))
                       for p in gs.neighbours(gs.opponent))
+        if next is None:
+            return self.wallhugger(next)
+        else:
+            return next
+
+    def runaway(self, gs):
+        parent = self.bfs(gs, gs.opponent)
+        d, next = max((parent.get(p, (None, None)), p)
+                      for p in gs.neighbours(gs.you))
         if next is None:
             return self.wallhugger(next)
         else:
