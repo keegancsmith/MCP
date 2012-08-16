@@ -24,7 +24,7 @@ Usage
 
 To run against a random AI run::
 
-  $ mcp local --player1 '/path/to/your/ai' --player2 'mcp randomai'
+  $ mcp local --player1 '/path/to/your/ai' --player2 'mcp ai random'
 
 You can adjust *player1* and *player2* accordingly. The default command to run
 for a player is ``start.sh`` or ``start.bat`` (depending if you are on a UNIX

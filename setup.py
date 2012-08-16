@@ -4,11 +4,11 @@ from setuptools import setup
 
 setup(
     name='MCP',
-    version='0.1',
+    version='0.2',
     author='Keegan Carruthers-Smith',
     author_email='keegan.csmith@gmail.com',
     url='https://github.com/keegancsmith/MCP',
-    license='LICENSE',
+    license='BSD',
     py_modules=['mcp'],
     description='A program to orchestrate Entellect Challenge bot matches.',
     long_description=file('README.rst').read(),

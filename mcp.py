@@ -368,18 +368,25 @@ def run_validate(args):
         test_game_state(gs)
 
 
-def run_random_ai(args):
-    gs = GameState.load(args.game_state)
-    args.game_state.close()
+class run_ai(object):
+    CHOICES = ('random',)
 
-    next = random.choice(list(gs.neighbours(gs.you)))
-    state = dict(gs.state)
-    state[next] = 'You'
-    state[gs.you] = 'YourWall'
-    gs = GameState(state, next, gs.opponent)
+    def __init__(self, args):
+        gs = GameState.load(args.game_state)
+        args.game_state.close()
 
-    with file(args.game_state.name, 'w') as fd:
-        gs.dump(fd)
+        ai = getattr(self, args.ai)
+        next = ai(gs)
+        state = dict(gs.state)
+        state[next] = 'You'
+        state[gs.you] = 'YourWall'
+        gs = GameState(state, next, gs.opponent)
+
+        with file(args.game_state.name, 'w') as fd:
+            gs.dump(fd)
+
+    def random(self, gs):
+        return random.choice(list(gs.neighbours(gs.you)))
 
 
 def main():
@@ -409,7 +416,7 @@ def main():
     parser_remote.set_defaults(func=run_remote_game)
 
     parser_validate = subparsers.add_parser('validate',
-                                          help='Validates a gamestate file')
+                                            help='Validates a gamestate file')
     parser_validate.add_argument('game_state', type=argparse.FileType('r'),
                                  help=('A path to the game state file to '
                                        'validate'))
@@ -418,11 +425,13 @@ def main():
                                        'and outputting the board'))
     parser_validate.set_defaults(func=run_validate)
 
-    parser_randai = subparsers.add_parser('randomai',
-                                          help='A Random AI for testing')
-    parser_randai.add_argument('game_state', type=argparse.FileType('r'),
-                               help=('A path to the game state file'))
-    parser_randai.set_defaults(func=run_random_ai)
+    parser_ai = subparsers.add_parser(
+        'ai', help='A collection of simple AIs for testing')
+    parser_ai.add_argument('ai', choices=run_ai.CHOICES,
+                           help=('The AI to use'))
+    parser_ai.add_argument('game_state', type=argparse.FileType('r'),
+                           help=('A path to the game state file'))
+    parser_ai.set_defaults(func=run_ai)
 
     args = parser.parse_args()
     args.func(args)
