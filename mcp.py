@@ -411,7 +411,7 @@ class run_ai(object):
         d, next = min(parent.get(p, (Ellipsis, None))
                       for p in gs.neighbours(gs.opponent))
         if next is None:
-            return self.wallhugger(next)
+            return self.wallhugger(gs)
         else:
             return next
 
@@ -420,7 +420,7 @@ class run_ai(object):
         d, next = max((parent.get(p, (None, None)), p)
                       for p in gs.neighbours(gs.you))
         if next is None:
-            return self.wallhugger(next)
+            return self.wallhugger(gs)
         else:
             return next
 
