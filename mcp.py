@@ -390,12 +390,14 @@ class run_ai(object):
 
     def wallhugger(self, gs):
         walls = ('Opponent', 'OpponentWall', 'YourWall')
+        neighbours = list(gs.neighbours(gs.you))
+        random.shuffle(neighbours)
         # Try a neighbouring position which is adjacent to a wall
-        for p in gs.neighbours(gs.you):
+        for p in neighbours:
             if any(gs[q] in walls for q in p.neighbours()):
                 return p
         # Try a corner of a wall
-        for p in gs.neighbours(gs.you):
+        for p in neighbours:
             shared_neighs = set(gs.you.neighbours()) \
                 .intersection(itertools.chain.from_iterable(
                 q.neighbours() for q in p.neighbours()))
@@ -428,10 +430,13 @@ class run_ai(object):
         for v in gs.neighbours(source):
             parent[v] = (1, v)
             queue.append(v)
+        random.shuffle(queue)
         while queue:
             v = queue.popleft()
             d, p = parent[v]
-            for u in gs.neighbours(v):
+            neighbours = list(gs.neighbours(v))
+            random.shuffle(neighbours)
+            for u in neighbours:
                 if u not in parent:
                     parent[u] = (d + 1, p)
                     queue.append(u)
