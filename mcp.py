@@ -330,8 +330,11 @@ def run_remote_game(args):
         print(payload[u'description'])
 
         if winners:
-            winners = ' and '.join(map(str, winners))
-            print('Game over. The winner(s) are ' + winners)
+            plural = ' is' if len(winners) == 1 else 's are'
+            winners = ('%s (%d)' % (payload[u'players'][i - 1][u'username'], i)
+                       for i in winners)
+            winners = ' and '.join(winners)
+            print('Game over. The winner%s %s' % (plural, winners))
             break
 
         if current_player != player_num:
